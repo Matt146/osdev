@@ -15,6 +15,10 @@ void printf(const char* fmt, ...) {
             if (*fmt == 'd') {
                 uint64_t num = va_arg(args, uint64_t);
                 serial_write(uint_to_str(num, 10));
+            } else if (*fmt == 'x') {
+                uint64_t num = va_arg(args, uint64_t);
+                serial_write("0x");
+                serial_write(uint_to_str(num, 16));
             }
         } else {
             if (*fmt != '%') {
