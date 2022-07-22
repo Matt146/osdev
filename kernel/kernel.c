@@ -14,6 +14,11 @@ static volatile struct limine_terminal_request terminal_request = {
     .revision = 0
 };
 
+static volatile struct limine_memmap_request memmap_request = {
+    .id = LIMINE_MEMMAP_REQUEST,
+    .revision = 0
+};
+
 static void done(void) {
     for (;;) {
         __asm__("hlt");
@@ -32,7 +37,17 @@ void armos_entry(void) {
     // a simple "Hello World" to screen.
     struct limine_terminal *terminal = terminal_request.response->terminals[0];
     terminal_request.response->write(terminal, "Hello World", 11);
- 
+
+    serial_write("Bruh\n");
+    printf("Bruh\n");
+    printf("This number: %d\n", 69);
+
+
+    // The start of armos code:
+    // First, make a call to get the memory map to initialize the PMM
+    // struct limine_memmap_entry** memmap_entries = memmap_request.response->entries;
+
+
     // We're done, just hang...
     done();
 }

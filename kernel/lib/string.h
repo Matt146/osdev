@@ -6,7 +6,7 @@
 
 static char characters[] = "0123456789ABCDEF";
 
-const char* itoa(uint64_t x, uint64_t base) {
+static const char* uint_to_str(uint64_t x, uint64_t base) {
     static char buff[500];
     size_t idx = 0;
     do {
@@ -23,6 +23,16 @@ const char* itoa(uint64_t x, uint64_t base) {
     }
 
     return buff;
+}
+
+static size_t
+strlen(const char *str)
+{
+        const char *s;
+
+        for (s = str; *s; ++s)
+                ;
+        return (s - str);
 }
 
 #endif //STRING_H
