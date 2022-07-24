@@ -44,6 +44,7 @@ void armos_entry(void) {
     // First, make a call to get the memory map to initialize the PMM
     struct limine_memmap_response* memmap_response = memmap_request.response;
     pmm_init(memmap_response, PMM_BITMAP_PAGE_SETTING_1);
+
     pmm_dump_bitmap();
 
     // We're done, just hang...
