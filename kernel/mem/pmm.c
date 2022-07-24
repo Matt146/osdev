@@ -17,37 +17,35 @@ int pmm_init(struct limine_memmap_response* memmap_response, int pmm_setting) {
     struct limine_memmap_entry* mm_entries = memmap_response->entries;
     uint64_t total_available_memory = 0;
     for (int i = 0; i < memmap_response->entry_count; i++) {
-        if (memmap_response->entries[i]->type == LIMINE_MEMMAP_USABLE) {
-            total_available_memory += memmap_response->entries[i]->length;
-        }
+        total_available_memory += memmap_response->entries[i]->length;
     }
     printf("[pmm: pmm_init] Total available memory: %d\n", total_available_memory);
 
     // Determine size of bitmap based on setting (AKA: the total number of pages)
-    size_t total_pages = 0;
-    if (pmm_setting == pmm_setting) {
-        total_pages = total_available_memory / pmm_setting;
-    }
+    size_t total_pages = total_pages = total_available_memory / pmm_setting;
     pmm_bitmap_size = total_pages;
     printf("[pmm: pmm_init] Total pages needed: %d\n", total_pages);
+    printf("[pmm: pmm_init] PMM bitmap size (in bytes): %d\n", pmm_bitmap_size);
 
     // Find the first entry in the PMM that has space for the required number of pages
     for (int i = 0; i < memmap_response->entry_count; i++) {
         if (memmap_response->entries[i]->type == LIMINE_MEMMAP_USABLE) {
-            if (memmap_response->entries[i]->length >= total_pages) {
+            if (memmap_response->entries[i]->length >= pmm_bitmap_size) {
                 pmm_bitmap_base = (char*)(memmap_response->entries[i]->base);
             }
         }
     }
     printf("[pmm: pmm_init] Bitmap base address: %x\n", (uint64_t)pmm_bitmap_base);
-    memset(pmm_bitmap_base, 0, pmm_bitmap_size);
+    memset(pmm_bitmap_base, 0, total_pages);
 
     // Fill out the bitmap such that the entries that are not usable
     // are marked as taken
     for (int i = 0; i < memmap_response->entry_count; i++) {
         if (memmap_response->entries[i]->type != LIMINE_MEMMAP_USABLE) {
             size_t start_page = (memmap_response->entries[i]->base) / pmm_setting;
-            size_t end_page = (start_page + memmap_response->entries[i]->length) / pmm_setting;
+            size_t end_page = start_page  + (memmap_response->entries[i]->length / pmm_setting);
+            //printf("[pmm: pmm_init] Start page: %d - End page: %d\n", start_page, end_page);
+            printf("[pmm: pmm_init] Restricted memory ranges: start addr: %x - end addr: %x\n", start_page * pmm_page_setting, end_page * pmm_page_setting);
             for (int j = start_page; j < end_page; j++) {
                 pmm_bitmap_base[j] = 1;
             }
@@ -55,7 +53,12 @@ int pmm_init(struct limine_memmap_response* memmap_response, int pmm_setting) {
     }
 
     // Fill out the area that the bitmap is stored in memory as not usable
-    memset(pmm_bitmap_base+((size_t)pmm_bitmap_base / pmm_setting), 1, pmm_bitmap_size / pmm_setting);
+    size_t start_page = ((size_t)pmm_bitmap_base) / pmm_setting;
+    size_t end_page = start_page + ((size_t)pmm_bitmap_size / pmm_setting);
+    printf("[pmm: pmm_init] Start page: %d - End page: %d\n", start_page, end_page);
+    for (int i = start_page; i < end_page; i++) {
+        pmm_bitmap_base[i] = 1;
+    }
 
     return 0;
 }
@@ -101,11 +104,13 @@ int pmm_free(size_t base, size_t page_cnt) {
 }
 
 void pmm_dump_bitmap() {
-    printf("[pmm: pmm_dump_bitmap] PMM (taken ranges)");
+    printf("[pmm: pmm_dump_bitmap] PMM bitmap base address: %x\n", (uint64_t)pmm_bitmap_base);
+    printf("[pmm: pmm_dump_bitmap] PMM bitmap length: %x\n", (uint64_t)pmm_bitmap_size);
+    printf("[pmm: pmm_dump_bitmap] PMM (taken ranges)\n");
     for (int i = 0; i < pmm_bitmap_size; i++) {
         if (pmm_bitmap_base[i] == 1) {
-            printf("\t - Address %x - %x: %d\n", ((size_t)pmm_bitmap_base + i) * pmm_page_setting,
-                ((size_t)pmm_bitmap_base + i) * pmm_page_setting + pmm_page_setting,
+            printf("\t - Address %x - %x: %d\n", i * pmm_page_setting,
+                (i * pmm_page_setting) + pmm_page_setting,
                 (size_t)pmm_bitmap_base[i]);
         }
     }
