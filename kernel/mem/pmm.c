@@ -4,6 +4,15 @@ int pmm_init(struct limine_memmap_response* memmap_response, int pmm_setting) {
     printf("[pmm: pmm_init] Initializing pmm...\n");
     pmm_page_setting = pmm_setting;
 
+    // Print out the memory map
+    printf("[pmm: pmm_init] Bootlaoder memory map map (%d=usable):\n", LIMINE_MEMMAP_USABLE);
+    for (int i = 0; i < memmap_response->entry_count; i++) {
+        printf("\t - base: %x, len: %d, type: %d\n",
+            memmap_response->entries[i]->base,
+            memmap_response->entries[i]->length,
+            memmap_response->entries[i]->type);
+    }
+
     // Count the total available memory
     struct limine_memmap_entry* mm_entries = memmap_response->entries;
     uint64_t total_available_memory = 0;
@@ -37,13 +46,16 @@ int pmm_init(struct limine_memmap_response* memmap_response, int pmm_setting) {
     // are marked as taken
     for (int i = 0; i < memmap_response->entry_count; i++) {
         if (memmap_response->entries[i]->type != LIMINE_MEMMAP_USABLE) {
-            size_t start_page = memmap_response->entries[i]->base;
-            size_t end_page = start_page + memmap_response->entries[i]->length;
+            size_t start_page = (memmap_response->entries[i]->base) / pmm_setting;
+            size_t end_page = (start_page + memmap_response->entries[i]->length) / pmm_setting;
             for (int j = start_page; j < end_page; j++) {
                 pmm_bitmap_base[j] = 1;
             }
         }
     }
+
+    // Fill out the area that the bitmap is stored in memory as not usable
+    memset(pmm_bitmap_base+((size_t)pmm_bitmap_base / pmm_setting), 1, pmm_bitmap_size / pmm_setting);
 
     return 0;
 }
@@ -74,15 +86,27 @@ void* pmm_alloc(size_t size) {
         }
     }
 
-    memset(pmm_bitmap_base, 1, page_count);
+    printf("[pmm: pmm_alloc] Memory chunk base address: %x\n", free_page_base * pmm_page_setting);
 
+    memset(pmm_bitmap_base+free_page_base, 1, page_count);
     return (void*)(free_page_base * pmm_page_setting);
 }
 
 int pmm_free(size_t base, size_t page_cnt) {
-    printf("[pmm: pmm_free] Freeing %d pages, starting from address %d\n", page_cnt, base);
+    printf("[pmm: pmm_free] Freeing %d pages, starting from address %x\n", page_cnt, base);
     size_t page_num_start = base % pmm_page_setting;
     memset(pmm_bitmap_base+page_num_start, 0, page_cnt);
 
     return 0;
+}
+
+void pmm_dump_bitmap() {
+    printf("[pmm: pmm_dump_bitmap] PMM (taken ranges)");
+    for (int i = 0; i < pmm_bitmap_size; i++) {
+        if (pmm_bitmap_base[i] == 1) {
+            printf("\t - Address %x - %x: %d\n", ((size_t)pmm_bitmap_base + i) * pmm_page_setting,
+                ((size_t)pmm_bitmap_base + i) * pmm_page_setting + pmm_page_setting,
+                (size_t)pmm_bitmap_base[i]);
+        }
+    }
 }

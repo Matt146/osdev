@@ -37,4 +37,10 @@ void* pmm_alloc(size_t size);
 */
 int pmm_free(size_t base, size_t page_cnt);
 
+/*
+ * pmm_dump_bitmap - dumps pmm through printf
+ *
+*/
+void pmm_dump_bitmap();
+
 #endif // PMM_H
